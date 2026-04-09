@@ -53,7 +53,7 @@ md_to_html("outputs/<name>.md")
 
 The two files should always travel together — markdown for editing/source-of-truth, HTML for sharing/viewing in a browser.
 
-**Clear `outputs/` before starting a fresh analysis.** Stale CSVs and markdown from a previous run can be confused with current results, and old files often encode prior (sometimes wrong) methodology. At the start of any new analysis task, run `python scripts/clear_outputs.py` to delete the existing contents of `outputs/` (the directory itself is kept). If the user is iterating on an in-progress analysis, do **not** run this — only clear files belonging to that same analysis manually.
+**Reset analysis state before starting a fresh analysis.** Stale CSVs and markdown from a previous run can be confused with current results, and old files often encode prior (sometimes wrong) methodology. At the start of any new analysis task, run `python scripts/reset.py` to (a) delete the existing contents of `outputs/` (the directory itself is kept) and (b) reset `scripts/analysis.py` back to its scratch shell. If the user is iterating on an in-progress analysis, do **not** run this — only clear files belonging to that same analysis manually.
 
 ## Analysis Defaults — Read Before Writing Queries
 
