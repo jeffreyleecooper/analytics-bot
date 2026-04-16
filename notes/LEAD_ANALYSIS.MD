@@ -49,8 +49,12 @@ A self-consistent quarterly analysis typically reports:
 | `booked` | numeric (0/1) | Flag indicating the opportunity was booked/contracted. Sum to count bookings. |
 | `commission_fee` | numeric | Commission revenue on the opportunity. |
 | `gross_fee` | numeric | Gross fee (talent + commission) on the opportunity. |
+| `proposal_stage_started_at` | datetime | When the opportunity entered the proposal stage. NULL if the stage was never reached. **Use this — not `proposal_stage_basis` — to detect that proposal was hit.** |
+| `offer_stage_started_at` | datetime | When the opportunity entered the offer stage. NULL if the stage was never reached. Some opps skip proposal and go straight assigned → offer. **Use this — not `offer_stage_basis` — to detect that offer was hit.** |
 
 When aggregating, numeric columns should be coerced to numbers and null-filled with `0`. String segment columns should be null-filled with `"Unknown"` so groupby operations don't drop rows.
+
+**Aside on `*_basis` columns:** the table also has `proposal_stage_basis`, `offer_stage_basis`, etc. These are populated on 100% of rows — they equal the corresponding `*_started_at` when the stage was hit, and fall back to a default timestamp (≈ `created_at`) otherwise. They are *not* the "stage was reached" signal. Always use `*_stage_started_at IS NOT NULL` for that.
 
 ## Budget Ordering
 
@@ -71,6 +75,7 @@ When aggregating, numeric columns should be coerced to numbers and null-filled w
 
 - **`qualified_lead`** — `1` when `lead_status` is *not* `doa` or `spam`, else `0`. Anything that isn't dead-on-arrival or spam counts as a real lead. Mainly relevant to inbound funnel analysis.
 - **`open_lead`** — `1` when `sales_status == "open"`, else `0`. Identifies leads still in the pipeline (not yet won or lost).
+- **`qualified_assigned_lead`** — `1` when `proposal_stage_started_at IS NOT NULL OR offer_stage_started_at IS NOT NULL OR booked = 1`, else `0`. Marks an assigned lead that progressed to a real opportunity stage (proposal, offer, or already booked). The `booked = 1` clause covers ~1,200 inbound + ~900 repeat older bookings whose stage timestamps are not populated, so `qualified_assigned ≥ booked` always holds.
 
 ## Metric Definitions
 
@@ -81,6 +86,7 @@ Standard aggregations sum the row-level flags/amounts above:
 | `leads` | Sum of `qualified_lead` — total qualified inbound leads (excludes DOA/spam). Bucket by `created_at`. |
 | `open_leads` | Sum of `open_lead` — leads still open in the sales pipeline. |
 | `assigned` | Sum of `assigned` flag — leads handed to a sales agent. Bucket by `created_at`. |
+| `qualified_assigned` | Sum of `qualified_assigned_lead` — assigned leads that reached proposal, offer, or booked. Bucket by `created_at` (it's a funnel metric). |
 | `booked` | Sum of `booked` flag — opportunities that contracted. **Bucket by `contracted_on`.** |
 | `commission_fee` | Sum of commission revenue. **Bucket by `contracted_on`.** |
 | `gross_fee` | Sum of gross fee revenue. **Bucket by `contracted_on`.** |
@@ -88,7 +94,8 @@ Standard aggregations sum the row-level flags/amounts above:
 ### Conversion Rates (inbound funnel)
 
 - **`assigned_rate` = `assigned / leads`** — share of qualified leads that get assigned to an agent.
-- **`booking_rate` = `booked / leads`** — share of qualified leads that ultimately book. Top-of-funnel close rate. Note: numerator and denominator should be measured against the same lead cohort (i.e. bucket the cohort by `created_at` and let bookings accrue over time), not against the same calendar window on different date axes.
+- **`qualified_assigned_rate` = `qualified_assigned / assigned`** — share of assigned leads that became real opportunities (reached proposal/offer or booked). Inbound runs ~49%; repeat ~22%, since most repeat work is informal and never logs a proposal stage. A useful "did we actually do sales work on this" gate, sitting between `assigned_rate` and `booking_rate`. Bucket by `created_at`.
+- **`booking_rate` = `booked / qualified_assigned`** — share of *qualified* opportunities (those that reached proposal/offer or booked) that ultimately book. This is the close rate on real opportunities, not on raw inbound volume — using `leads` as the denominator dilutes it with DOA/spam-filtered-but-never-worked rows. Note: numerator and denominator should be measured against the same cohort (i.e. bucket the cohort by `created_at` and let bookings accrue over time), not against the same calendar window on different date axes.
 - **`win_rate` = `booked / (assigned - open_leads)`** — share of *closed* assigned leads that booked. Open leads are removed from the denominator so still-in-progress deals don't deflate the rate. This is the agent-level close rate on resolved opportunities.
 
 Divisions by zero should be filled with `0`.
