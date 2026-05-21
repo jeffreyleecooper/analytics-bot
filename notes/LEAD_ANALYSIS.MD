@@ -32,6 +32,12 @@ A self-consistent quarterly analysis typically reports:
 - **Funnel metrics** (`leads`, `assigned`, conversion rates) by `created_at`, **inbound only** (repeat has no funnel).
 - **Booked/revenue metrics** (`booked`, `gross_fee`, `commission_fee`) by `contracted_on`, **all sources**, optionally split inbound vs repeat.
 
+When reporting percentage changes, show both:
+- **PoP** — current period vs the equivalent immediately prior period.
+- **YoY** — current period vs the same calendar window in the prior year.
+
+Do not show only one of PoP or YoY when making a percentage comparison unless the user explicitly asks for a single comparison.
+
 ## Fields Used Often in Analysis
 
 | Field | Type | Description |
@@ -40,7 +46,7 @@ A self-consistent quarterly analysis typically reports:
 | `contracted_on` | datetime | When the opportunity was contracted (booked). Null for leads that never booked. See date-axis guidance above. |
 | `lead_source` | string | `inbound` or `repeat`. See above. |
 | `lead_origin` | string | Sub-segmentation of an inbound lead's origin (e.g. `aaespeakers.com`). **Mostly null for `repeat`** — only meaningful for inbound. |
-| `lead_status` | string | Disposition of the lead. Values of `doa` or `spam` (case-insensitive) are treated as unqualified. |
+| `lead_status` | string | Disposition of the lead. Values of `doa` or `spam` (case-insensitive) are excluded from **valid leads**. Do not call this filter "qualified"; qualified means stage progression below. |
 | `sales_status` | string | Sales pipeline state. A value of `open` (case-insensitive) marks the lead as still in progress. |
 | `sales_agent` | string | Sales agent assigned to the opportunity. Populated for ~95% of repeat rows and ~25% of inbound rows. |
 | `std_budget` | string | Standardized client budget bucket. **Mostly null for `repeat`** — only meaningful for inbound. See ordered sequence below. |
@@ -53,6 +59,8 @@ A self-consistent quarterly analysis typically reports:
 | `offer_stage_started_at` | datetime | When the opportunity entered the offer stage. NULL if the stage was never reached. Some opps skip proposal and go straight assigned → offer. **Use this — not `offer_stage_basis` — to detect that offer was hit.** |
 
 When aggregating, numeric columns should be coerced to numbers and null-filled with `0`. String segment columns should be null-filled with `"Unknown"` so groupby operations don't drop rows.
+
+For inbound source-mix analysis, segment by the intersection of **`lead_origin` × `ad_presence`** unless the user asks for only one of those dimensions. This distinguishes website/source effects from ad vs non-ad traffic effects.
 
 **Aside on `*_basis` columns:** the table also has `proposal_stage_basis`, `offer_stage_basis`, etc. These are populated on 100% of rows — they equal the corresponding `*_started_at` when the stage was hit, and fall back to a default timestamp (≈ `created_at`) otherwise. They are *not* the "stage was reached" signal. Always use `*_stage_started_at IS NOT NULL` for that.
 
@@ -73,9 +81,14 @@ When aggregating, numeric columns should be coerced to numbers and null-filled w
 
 ## Derived Flags (Row-Level)
 
-- **`qualified_lead`** — `1` when `lead_status` is *not* `doa` or `spam`, else `0`. Anything that isn't dead-on-arrival or spam counts as a real lead. Mainly relevant to inbound funnel analysis.
+Use these names carefully. In business-facing analysis, **qualified lead** means the lead progressed to proposal or offer stage. A lead that is merely not DOA/spam is a **valid lead**, not a qualified lead.
+
+- **`valid_lead`** — `1` when `lead_status` is *not* `doa` or `spam`, else `0`. This is the clean top-of-funnel count after junk filtering. Mainly relevant to inbound funnel analysis.
 - **`open_lead`** — `1` when `sales_status == "open"`, else `0`. Identifies leads still in the pipeline (not yet won or lost).
-- **`qualified_assigned_lead`** — `1` when `proposal_stage_started_at IS NOT NULL OR offer_stage_started_at IS NOT NULL OR booked = 1`, else `0`. Marks an assigned lead that progressed to a real opportunity stage (proposal, offer, or already booked). The `booked = 1` clause covers ~1,200 inbound + ~900 repeat older bookings whose stage timestamps are not populated, so `qualified_assigned ≥ booked` always holds.
+- **`assigned_lead`** — `1` when `assigned = 1`, else `0`. Marks leads handed to a sales agent.
+- **`active_assigned_unqualified_lead`** — `1` when `assigned = 1`, proposal and offer stage have not been reached, and `sales_status == "open"`, else `0`. Use this to estimate remaining near-term potential in a recent created-date cohort.
+- **`stage_qualified_lead`** — `1` when `proposal_stage_started_at IS NOT NULL OR offer_stage_started_at IS NOT NULL`, else `0`. This is the preferred "qualified lead" definition for funnel-quality analysis.
+- **`qualified_assigned_lead`** — legacy/historical compatibility flag: `1` when `proposal_stage_started_at IS NOT NULL OR offer_stage_started_at IS NOT NULL OR booked = 1`, else `0`. Use this only when you need booked-row fallback for older records whose stage timestamps are missing; label it explicitly as "qualified + booked fallback."
 
 ## Metric Definitions
 
@@ -83,19 +96,24 @@ Standard aggregations sum the row-level flags/amounts above:
 
 | Metric | Definition |
 |---|---|
-| `leads` | Sum of `qualified_lead` — total qualified inbound leads (excludes DOA/spam). Bucket by `created_at`. |
+| `raw_inbound_records` | Count of every inbound row created in the period. Bucket by `created_at`. |
+| `valid_leads` | Sum of `valid_lead` — inbound leads excluding DOA/spam. Bucket by `created_at`. |
 | `open_leads` | Sum of `open_lead` — leads still open in the sales pipeline. |
 | `assigned` | Sum of `assigned` flag — leads handed to a sales agent. Bucket by `created_at`. |
-| `qualified_assigned` | Sum of `qualified_assigned_lead` — assigned leads that reached proposal, offer, or booked. Bucket by `created_at` (it's a funnel metric). |
+| `active_leads` | Sum of `active_assigned_unqualified_lead` — assigned, still-open leads that have not yet reached proposal or offer. Useful for recent periods where qualification may not have matured yet. |
+| `qualified_leads` / `stage_qualified_leads` | Sum of `stage_qualified_lead` — leads that reached proposal or offer stage. Bucket by `created_at` (it's a funnel metric). |
+| `qualified_assigned` | Sum of `qualified_assigned_lead` — proposal/offer stage reached, with booked fallback for older records. Bucket by `created_at`; label this as "qualified + booked fallback" when reporting. |
+| `valid_expected_value` / `valid_ev` | Sum of marketing expected lead value for valid leads only (`marketing_expected_lead_value * valid_lead`). Expected value should not be aggregated or reported for raw records, assigned leads, active leads, qualified leads, booked leads, or open leads. |
 | `booked` | Sum of `booked` flag — opportunities that contracted. **Bucket by `contracted_on`.** |
 | `commission_fee` | Sum of commission revenue. **Bucket by `contracted_on`.** |
 | `gross_fee` | Sum of gross fee revenue. **Bucket by `contracted_on`.** |
 
 ### Conversion Rates (inbound funnel)
 
-- **`assigned_rate` = `assigned / leads`** — share of qualified leads that get assigned to an agent.
-- **`qualified_assigned_rate` = `qualified_assigned / assigned`** — share of assigned leads that became real opportunities (reached proposal/offer or booked). Inbound runs ~49%; repeat ~22%, since most repeat work is informal and never logs a proposal stage. A useful "did we actually do sales work on this" gate, sitting between `assigned_rate` and `booking_rate`. Bucket by `created_at`.
-- **`booking_rate` = `booked / qualified_assigned`** — share of *qualified* opportunities (those that reached proposal/offer or booked) that ultimately book. This is the close rate on real opportunities, not on raw inbound volume — using `leads` as the denominator dilutes it with DOA/spam-filtered-but-never-worked rows. Note: numerator and denominator should be measured against the same cohort (i.e. bucket the cohort by `created_at` and let bookings accrue over time), not against the same calendar window on different date axes.
+- **`assigned_rate` = `assigned / valid_leads`** — share of valid, non-DOA/spam inbound leads that get assigned to an agent.
+- **`stage_qualification_rate` = `stage_qualified_leads / assigned`** — share of assigned leads that became real opportunities by reaching proposal or offer stage. This is the preferred lead-quality/progression metric.
+- **`qualified_assigned_rate` = `qualified_assigned / assigned`** — legacy compatible version of the above that also counts booked rows with missing stage timestamps. Use only when you need the booked fallback, and label it clearly.
+- **`booking_rate` = `booked / qualified_assigned`** — share of qualified opportunities (proposal/offer, plus booked fallback where needed) that ultimately book. This is the close rate on real opportunities, not on raw inbound volume — using `valid_leads` as the denominator dilutes it with DOA/spam-filtered-but-never-worked rows. Note: numerator and denominator should be measured against the same cohort (i.e. bucket the cohort by `created_at` and let bookings accrue over time), not against the same calendar window on different date axes.
 - **`win_rate` = `booked / (assigned - open_leads)`** — share of *closed* assigned leads that booked. Open leads are removed from the denominator so still-in-progress deals don't deflate the rate. This is the agent-level close rate on resolved opportunities.
 
 Divisions by zero should be filled with `0`.

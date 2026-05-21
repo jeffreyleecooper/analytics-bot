@@ -1,0 +1,4 @@
+period_sort,period,comparison_label,start_date,end_date,raw_inbound_records,valid_leads,assigned_leads,active_leads,stage_qualified_leads,stage_or_booked_qualified_leads,valid_marketing_expected_lead_value,doa_spam_records,avg_expected_value_per_valid_lead
+1,Current May 1-20 2026,current,2026-05-01,2026-05-20,3303,862,691,152,316,318,425071.52,2441,493.12241299303946
+2,Prior 20 days Apr 11-30 2026,prior_20_days,2026-04-11,2026-04-30,5266,880,753,8,407,407,409657.79,4386,465.5202159090909
+3,Last year May 1-20 2025,last_year_same_dates,2025-05-01,2025-05-20,2414,747,622,0,385,385,369348.13,1667,494.4419410977242
