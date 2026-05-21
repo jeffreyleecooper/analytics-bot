@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTD April 2026 vs 2025 — Why is volume up but commission down?</title>
+<style>
+:root { color-scheme: light; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+       max-width: 980px; margin: 2rem auto; padding: 0 1.25rem; color: #1f2328; line-height: 1.55; }
+h1, h2, h3, h4 { line-height: 1.25; }
+h1 { border-bottom: 1px solid #d0d7de; padding-bottom: .3em; }
+h2 { border-bottom: 1px solid #d0d7de; padding-bottom: .3em; margin-top: 2em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: .92em; }
+th, td { border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; }
+th { background: #f6f8fa; }
+tr:nth-child(even) td { background: #f9fafb; }
+code { background: #eff1f3; padding: .15em .35em; border-radius: 4px; font-size: .9em; }
+pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
+blockquote { border-left: 4px solid #d0d7de; margin: 1em 0; padding: .25em 1em; color: #57606a;
+             background: #f6f8fa; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+hr { border: 0; border-top: 1px solid #d0d7de; margin: 2em 0; }
+</style>
+</head>
+<body>
+<h1 id="mtd-april-2026-vs-2025-why-is-volume-up-but-commission-down">MTD April 2026 vs 2025 — Why is volume up but commission down?</h1>
+<p><strong>Window:</strong> April 1–28 each year, bucketed by <code>contracted_on</code> (revenue side). Funnel volumes use <code>created_at</code> and are inbound-only.</p>
+<h2 id="headline">Headline</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: right;">2025 MTD</th>
+<th style="text-align: right;">2026 MTD</th>
+<th style="text-align: right;">Δ</th>
+<th style="text-align: right;">YoY</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bookings</td>
+<td style="text-align: right;">147</td>
+<td style="text-align: right;">154</td>
+<td style="text-align: right;">+7</td>
+<td style="text-align: right;">+4.8%</td>
+</tr>
+<tr>
+<td>Gross fee</td>
+<td style="text-align: right;">$5,691,005</td>
+<td style="text-align: right;">$5,086,000</td>
+<td style="text-align: right;">-$605,005</td>
+<td style="text-align: right;">-10.6%</td>
+</tr>
+<tr>
+<td><strong>Commission</strong></td>
+<td style="text-align: right;"><strong>$1,536,703</strong></td>
+<td style="text-align: right;"><strong>$1,261,310</strong></td>
+<td style="text-align: right;"><strong>-$275,393</strong></td>
+<td style="text-align: right;"><strong>-17.9%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Volume up, commission down — confirmed. The decline lives entirely on <strong>inbound</strong>; <strong>repeat is up</strong>.</p>
+<h2 id="1-repeat-vs-inbound-repeat-is-healthy-inbound-is-the-problem">1. Repeat vs Inbound — repeat is healthy, inbound is the problem</h2>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th style="text-align: right;">Bookings 25→26</th>
+<th style="text-align: right;">Commission 25→26</th>
+<th style="text-align: right;">Δ Commission</th>
+<th style="text-align: right;">Avg comm/booking 25→26</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Repeat</strong></td>
+<td style="text-align: right;">68 → 75 (+10%)</td>
+<td style="text-align: right;">$676,500 → $752,285</td>
+<td style="text-align: right;"><strong>+$75,785 (+11%)</strong></td>
+<td style="text-align: right;">$9,949 → $10,030 (~flat)</td>
+</tr>
+<tr>
+<td><strong>Inbound</strong></td>
+<td style="text-align: right;">79 → 79 (flat)</td>
+<td style="text-align: right;">$860,203 → $509,025</td>
+<td style="text-align: right;"><strong>-$351,178 (-41%)</strong></td>
+<td style="text-align: right;"><strong>$10,889 → $6,443 (-41%)</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Inbound booked the <strong>same number of deals</strong> but each one is worth ~40% less in commission. So this is a <strong>revenue-per-deal / mix problem</strong>, not a volume problem.</p>
+<h2 id="2-within-inbound-the-damage-is-in-the-high-end-unknown-budget-brackets">2. Within Inbound — the damage is in the high-end / unknown-budget brackets</h2>
+<table>
+<thead>
+<tr>
+<th>Budget bucket</th>
+<th style="text-align: right;">Booked 25→26</th>
+<th style="text-align: right;">Commission 25→26</th>
+<th style="text-align: right;">Δ Commission</th>
+<th style="text-align: right;">Avg comm 25→26</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$5K or less</td>
+<td style="text-align: right;">1 → 1</td>
+<td style="text-align: right;">$2,500 → $2,500</td>
+<td style="text-align: right;">$0</td>
+<td style="text-align: right;">flat</td>
+</tr>
+<tr>
+<td>$5K–10K</td>
+<td style="text-align: right;">19 → 15</td>
+<td style="text-align: right;">$55,375 → $45,025</td>
+<td style="text-align: right;">-$10,350</td>
+<td style="text-align: right;">flat (~$3K)</td>
+</tr>
+<tr>
+<td>$10K–20K</td>
+<td style="text-align: right;">15 → <strong>22</strong></td>
+<td style="text-align: right;">$72,750 → $95,750</td>
+<td style="text-align: right;"><strong>+$23,000</strong></td>
+<td style="text-align: right;">flat (~$4.5K)</td>
+</tr>
+<tr>
+<td>$20K–30K</td>
+<td style="text-align: right;">7 → <strong>14</strong></td>
+<td style="text-align: right;">$48,250 → $103,625</td>
+<td style="text-align: right;"><strong>+$55,375</strong></td>
+<td style="text-align: right;">flat (~$7.4K)</td>
+</tr>
+<tr>
+<td>$30K–50K</td>
+<td style="text-align: right;">3 → <strong>7</strong></td>
+<td style="text-align: right;">$27,500 → $66,175</td>
+<td style="text-align: right;"><strong>+$38,675</strong></td>
+<td style="text-align: right;">flat (~$9.4K)</td>
+</tr>
+<tr>
+<td>$50K–100K</td>
+<td style="text-align: right;">1 → 2</td>
+<td style="text-align: right;">$12,500 → $21,500</td>
+<td style="text-align: right;">+$9,000</td>
+<td style="text-align: right;">flat</td>
+</tr>
+<tr>
+<td><strong>$100K+</strong></td>
+<td style="text-align: right;"><strong>3 → 1</strong></td>
+<td style="text-align: right;"><strong>$95,375 → $5,000</strong></td>
+<td style="text-align: right;"><strong>-$90,375</strong></td>
+<td style="text-align: right;">$31,792 → $5,000</td>
+</tr>
+<tr>
+<td>Unsure</td>
+<td style="text-align: right;">20 → 14</td>
+<td style="text-align: right;">$161,453 → $106,950</td>
+<td style="text-align: right;">-$54,503</td>
+<td style="text-align: right;">flat (~$8K)</td>
+</tr>
+<tr>
+<td><strong>Unknown</strong></td>
+<td style="text-align: right;"><strong>10 → 3</strong></td>
+<td style="text-align: right;"><strong>$384,500 → $62,500</strong></td>
+<td style="text-align: right;"><strong>-$322,000</strong></td>
+<td style="text-align: right;">$38,450 → $20,833</td>
+</tr>
+</tbody>
+</table>
+<p>Mid-tier ($10K–$50K) is <strong>growing nicely</strong> — +$117K commission, +18 bookings, with stable unit economics. The bleed is entirely in two buckets:</p>
+<ul>
+<li><strong>"Unknown" budget</strong>: -$322K (was the single biggest commission contributor in 2025).</li>
+<li><strong>"$100K and above"</strong>: -$90K (only 1 booking and at a $5K commission, vs. an avg of $32K last year).</li>
+</ul>
+<p>Together those two buckets are -$412K — more than the entire $351K inbound decline. The "Unsure" bucket adds another -$54K.</p>
+<p>In short: <strong>we are losing the big-fish inbound deals</strong>, and the mid-tier growth isn't enough to offset.</p>
+<h3 id="demand-side-check-these-leads-are-still-arriving">Demand-side check — these leads are still arriving</h3>
+<p>By <code>created_at</code>, <strong>inbound leads in the high-end buckets actually grew YoY</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Budget bucket</th>
+<th style="text-align: right;">Leads 25→26</th>
+<th style="text-align: right;">Qualified leads 25→26</th>
+<th style="text-align: right;">Assigned 25→26</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$100K+</td>
+<td style="text-align: right;">237 → <strong>393</strong> (+66%)</td>
+<td style="text-align: right;">69 → 60</td>
+<td style="text-align: right;">54 → 48</td>
+</tr>
+<tr>
+<td>Unknown</td>
+<td style="text-align: right;">50 → <strong>75</strong> (+50%)</td>
+<td style="text-align: right;">35 → 23</td>
+<td style="text-align: right;">35 → 23</td>
+</tr>
+<tr>
+<td>Unsure</td>
+<td style="text-align: right;">616 → <strong>751</strong> (+22%)</td>
+<td style="text-align: right;">277 → 363</td>
+<td style="text-align: right;">243 → 298</td>
+</tr>
+</tbody>
+</table>
+<p>The funnel is bringing in <strong>more</strong> high-end demand, but qualified-and-assigned counts are flat or down, and bookings (contracted side) collapsed. The top of the funnel is fine — <strong>the close is broken at the high end.</strong></p>
+<blockquote>
+<p>Side note: <code>$30K–50K</code> shows 2,310 raw rows with only 120 qualified — a ~95% DOA/spam rate, vs. ~50% normal. Something funky in intake for that bucket; flag for separate look.</p>
+</blockquote>
+<h2 id="3-within-inbound-the-damage-is-concentrated-in-2-agents">3. Within Inbound — the damage is concentrated in 2 agents</h2>
+<p>Worst commission deltas (April 1–28 YoY, inbound only):</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th style="text-align: right;">Bookings 25→26</th>
+<th style="text-align: right;">Commission 25→26</th>
+<th style="text-align: right;">Δ Commission</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sawyer Panara</strong></td>
+<td style="text-align: right;">16 → 10</td>
+<td style="text-align: right;">$345,750 → $54,200</td>
+<td style="text-align: right;"><strong>-$291,550 (-84%)</strong></td>
+</tr>
+<tr>
+<td><strong>Jessica Brown</strong></td>
+<td style="text-align: right;">14 → 6</td>
+<td style="text-align: right;">$176,000 → $37,925</td>
+<td style="text-align: right;"><strong>-$138,075 (-78%)</strong></td>
+</tr>
+<tr>
+<td>Jasmine Mansfield</td>
+<td style="text-align: right;">7 → 10</td>
+<td style="text-align: right;">$102,500 → $61,750</td>
+<td style="text-align: right;">-$40,750 (-40%)</td>
+</tr>
+<tr>
+<td>Amanda Miller</td>
+<td style="text-align: right;">13 → 10</td>
+<td style="text-align: right;">$80,500 → $61,400</td>
+<td style="text-align: right;">-$19,100 (-24%)</td>
+</tr>
+<tr>
+<td>Ryan Finnerty</td>
+<td style="text-align: right;">7 → 3</td>
+<td style="text-align: right;">$25,625 → $10,000</td>
+<td style="text-align: right;">-$15,625 (-61%)</td>
+</tr>
+<tr>
+<td>Dylan Kirkpatrick</td>
+<td style="text-align: right;">8 → 12</td>
+<td style="text-align: right;">$41,703 → $49,000</td>
+<td style="text-align: right;">+$7,297</td>
+</tr>
+<tr>
+<td>Katie Carson</td>
+<td style="text-align: right;">5 → 7</td>
+<td style="text-align: right;">$16,250 → $49,000</td>
+<td style="text-align: right;"><strong>+$32,750</strong></td>
+</tr>
+<tr>
+<td>Sarah Angry</td>
+<td style="text-align: right;">5 → 10</td>
+<td style="text-align: right;">$46,000 → $85,500</td>
+<td style="text-align: right;"><strong>+$39,500</strong></td>
+</tr>
+<tr>
+<td>Mandy Lubrano</td>
+<td style="text-align: right;">4 → 11</td>
+<td style="text-align: right;">$25,875 → $100,250</td>
+<td style="text-align: right;"><strong>+$74,375</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Sawyer alone is -$292K</strong> — that's 83% of the $351K inbound commission decline.
+<strong>Sawyer + Jessica = -$430K</strong>, which is more than the entire inbound shortfall (the other agents are net +$80K).</p>
+<h3 id="why-sawyer-jessica-fell-they-lost-their-high-end-mix">Why Sawyer / Jessica fell — they lost their high-end mix</h3>
+<p>Cross-tabbing those two (and Amanda) by budget:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>2025</th>
+<th>2026</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Unknown-budget bookings</strong></td>
+<td><strong>8 deals, $362K commission</strong></td>
+<td><strong>0 deals, $0</strong></td>
+</tr>
+<tr>
+<td>Unsure-budget bookings</td>
+<td>10 deals, $104K</td>
+<td>6 deals, $39K</td>
+</tr>
+<tr>
+<td>Mid-tier ($5K–$50K)</td>
+<td>24 deals, $124K</td>
+<td>20 deals, $115K (~flat)</td>
+</tr>
+</tbody>
+</table>
+<p>In 2025 Sawyer + Jessica + Amanda closed <strong>8 "Unknown"-budget inbound deals worth $362K in commission</strong>. In 2026 they've closed <strong>zero</strong>. Their mid-tier work is roughly stable — they are not collapsing across the board, they have specifically stopped converting the big-fish opportunities. The "Unknown" budget bucket historically averaged $38K commission/booking (the highest of any bucket); these are the deals that move the number.</p>
+<p>Meanwhile, Mandy Lubrano (+$74K), Sarah Angry (+$40K), Katie Carson (+$33K) picked up some big-end deals — Mandy's "Unknown"-budget booking ($30K commission) and Sarah's two "Unknown" bookings ($32.5K) are exactly the type Sawyer used to win.</p>
+<h2 id="bottom-line">Bottom line</h2>
+<ol>
+<li><strong>Repeat business is up YoY (+11% commission).</strong> Not a problem.</li>
+<li><strong>Inbound bookings are flat (79=79); commission is down 41%</strong> because revenue-per-booking dropped 41%. This is a mix shift, not a volume drop.</li>
+<li><strong>The mix shift is concentrated in 2 buckets</strong>: "$100K+" (-$90K) and "Unknown budget" (-$322K). Mid-tier ($10K–$50K) is actually growing.</li>
+<li><strong>The mix shift is concentrated in 2 agents</strong>: Sawyer Panara (-$292K) and Jessica Brown (-$138K). Together they explain more than 100% of the inbound decline. Specifically, <strong>they have closed zero "Unknown"-budget inbound deals</strong> in April 2026 vs. 8 worth $362K in April 2025.</li>
+<li><strong>The lead funnel is bringing in more high-end demand, not less</strong> — $100K+ leads +66%, Unknown +50%. So the issue isn't intake; it's conversion of premium leads to bookings, by specific agents.</li>
+</ol>
+<h3 id="what-to-look-at-next">What to look at next</h3>
+<ul>
+<li>Pull the Sawyer / Jessica large-deal pipeline as of today: are these deals stalled in proposal/offer, or never assigned, or losing to competitors?</li>
+<li>Check whether high-end leads in April 2026 are being routed to the agents who can close them (Mandy/Sarah/Katie are the ones actually winning that segment now).</li>
+<li>Sanity check the <code>$30K–50K</code> lead intake — 2,310 rows in 4 weeks vs. 187 last year, with a 95% DOA/spam rate, suggests an intake-quality regression worth a separate look.</li>
+</ul>
+</body>
+</html>

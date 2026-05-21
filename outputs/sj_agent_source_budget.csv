@@ -1,0 +1,26 @@
+yr,sales_agent,lead_source,std_budget,booked,gross_fee,commission_fee
+2025,Jessica Brown,inbound,"$10,000 - $20,000",3,39500.000000000,12750.000000000
+2025,Jessica Brown,inbound,"$20,000 - $30,000",4,125000.000000000,33250.000000000
+2025,Jessica Brown,inbound,"$5,000 - $10,000",1,6000.000000000,2500.000000000
+2025,Jessica Brown,inbound,"$50,000 - $100,000",1,40000.000000000,12500.000000000
+2025,Jessica Brown,inbound,"I have a budget, but I am unsure of what it is",3,85000.000000000,20000.000000000
+2025,Jessica Brown,inbound,Unknown,2,390000.000000000,95000.000000000
+2026,Jessica Brown,inbound,"$10,000 - $20,000",1,20000.000000000,5000.000000000
+2026,Jessica Brown,inbound,"$30,000 - $50,000",1,31500.000000000,6300.000000000
+2026,Jessica Brown,inbound,"$5,000 - $10,000",1,12500.000000000,3125.000000000
+2026,Jessica Brown,inbound,"I have a budget, but I am unsure of what it is",3,145000.000000000,23500.000000000
+2025,Jessica Brown,repeat,Unknown,4,58500.000000000,15625.000000000
+2026,Jessica Brown,repeat,Unknown,8,107500.000000000,28000.000000000
+2025,Sawyer Panara,inbound,"$10,000 - $20,000",4,65500.000000000,17750.000000000
+2025,Sawyer Panara,inbound,"$20,000 - $30,000",1,27500.000000000,2500.000000000
+2025,Sawyer Panara,inbound,"$30,000 - $50,000",2,63500.000000000,21500.000000000
+2025,Sawyer Panara,inbound,"$5,000 - $10,000",4,35000.000000000,11000.000000000
+2025,Sawyer Panara,inbound,"I have a budget, but I am unsure of what it is",2,200000.000000000,35000.000000000
+2025,Sawyer Panara,inbound,Unknown,3,860000.000000000,258000.000000000
+2026,Sawyer Panara,inbound,"$10,000 - $20,000",4,73500.000000000,17500.000000000
+2026,Sawyer Panara,inbound,"$20,000 - $30,000",1,50000.000000000,15000.000000000
+2026,Sawyer Panara,inbound,"$30,000 - $50,000",1,28000.000000000,8000.000000000
+2026,Sawyer Panara,inbound,"$5,000 - $10,000",3,43500.000000000,11000.000000000
+2026,Sawyer Panara,inbound,"I have a budget, but I am unsure of what it is",1,8700.000000000,2700.000000000
+2025,Sawyer Panara,repeat,Unknown,4,67500.000000000,18300.000000000
+2026,Sawyer Panara,repeat,Unknown,9,305000.000000000,55750.000000000
