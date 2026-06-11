@@ -24,7 +24,7 @@ The table has **two date columns** and they answer different questions. Using th
 | column | type | meaning | use it for |
 |---|---|---|---|
 | `created_at` | DATETIME | When the lead/opportunity record was created. | **Top-of-funnel metrics**: `total_leads`, `workable_leads`, `assigned`, lead-source mix, lead-origin trends, intake quality. Bucketing by `created_at` measures *when demand arrived*. |
-| `contracted_on` | DATETIME | When the opportunity was contracted (booked). Null for leads that never booked. | **Booked / revenue metrics**: `booked`, `gross_fee`, `commission_fee`, win rate. Bucketing by `contracted_on` measures *when revenue was earned* and is the axis the business dashboards use. |
+| `contracted_on` | DATETIME | When the opportunity was contracted (booked). Null for leads that never booked. | **Booked / revenue metrics**: `booked`, `gross_fee`, `commission_fee`, win rate. Bucketing by `contracted_on` measures *when revenue was earned*. |
 
 **Why this matters:** a lead created in Q4 2025 that contracts in Q1 2026 is Q1 2026 *revenue* but Q4 2025 *demand*. If you bucket bookings by `created_at`, recent periods look artificially weak because their pipeline hasn't closed yet. **Always bucket revenue by `contracted_on` when comparing periods.** Repeat business especially has no meaningful `created_at`-vs-`contracted_on` distinction at the funnel level — it should always be bucketed by `contracted_on`.
 

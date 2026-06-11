@@ -86,21 +86,19 @@ write_report("inbound_30d_vs_prior", body)   # -> outputs/inbound_30d_vs_prior.h
 
 ## Analysis Defaults — Read Before Writing Queries
 
-These defaults apply to any analysis against `1_mega_opps_live`. Violating them silently produces results that will not reconcile with the business dashboards.
+These defaults apply to any analysis against `1_mega_opps_live`. Violating them silently produces results that will not reconcile with the actual business performance.
 
 1. **Include both `inbound` and `repeat` lead sources by default.** `lead_source` has two values: `inbound` (~88% of rows) and `repeat` (~12% of rows but ~half of commission revenue). Filtering to one without a stated reason understates the business by roughly 50%. Only scope to a single source when the question is explicitly funnel-shaped (inbound only) or explicitly about repeat clients.
 
 2. **Bucket booked / revenue metrics by `contracted_on`, not `created_at`.** The table has two date columns:
    - `created_at` — when the lead/opportunity record was created. Use this only for **funnel metrics** (`total_leads`, `workable_leads`, `assigned`, SQL, lead-source mix, intake quality). It measures *when demand arrived*.
-   - `contracted_on` — when the opportunity contracted. **Use this for `booked`, `gross_fee`, `commission_fee`, and any "performance / revenue" question.** It measures *when revenue was earned* and is the axis the business dashboards key on.
+   - `contracted_on` — when the opportunity contracted. **Use this for `booked`, `gross_fee`, `commission_fee`, and any "performance / revenue" question.** It measures *when revenue was earned*.
 
    A lead created in Q4 that contracts in Q1 is Q1 *revenue* but Q4 *demand*. Bucketing bookings by `created_at` makes recent periods look artificially weak because their pipeline hasn't closed yet. Repeat business in particular has no meaningful funnel and should always be bucketed by `contracted_on`.
 
 3. **A self-consistent quarterly analysis usually splits into two views:**
    - **Revenue view** — `booked` / `gross_fee` / `commission_fee` by `contracted_on`, both sources, optionally split inbound vs repeat.
    - **Funnel view** — `total_leads` / `workable_leads` / `assigned` / SQL / conversion rates by `created_at`, inbound only.
-
-4. **Sanity-check headline numbers against the business dashboards before publishing takeaways.** If your Q1 booked count or commission total disagrees with the dashboard by more than rounding, something is wrong with the methodology — stop and reconcile before drawing conclusions.
 
 Full field reference, metric definitions, and budget ordering: [notes/LEAD_ANALYSIS.MD](notes/LEAD_ANALYSIS.MD).
 
