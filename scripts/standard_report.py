@@ -26,19 +26,26 @@ Each table has, per metric, one value column per window (`<metric>__<window>`) p
 relative-change column of the primary (first) window vs every other window
 (`<metric>__vs_<window>`).
 
-CLI — writes every table to outputs/<name>.csv and a tables-only HTML data pack:
-    python -m scripts.standard_report \
-        --window current=2026-05-13:2026-06-11 \
-        --window prior=2026-04-13:2026-05-12
+Default comparison framing: PoP + YoY. Give `--period START:END` and the report
+auto-derives three windows — `current`, `prior` (immediately preceding equal-length
+period), and `yoy` (same calendar window a year earlier) — so every table carries
+both a `__vs_prior` and a `__vs_yoy` change column. Use `--compare pop|yoy` to keep
+only one, or `--window` for full manual control.
+
+CLI — writes every table to outputs/<name>_<table>.csv and a tables-only HTML pack:
+    python -m scripts.standard_report --period 2026-04-01:2026-06-30          # Q2: current + PoP + YoY
+    python -m scripts.standard_report --period 2026-04-01:2026-06-30 --compare yoy
+    python -m scripts.standard_report --window a=2026-04-01:2026-06-30 --window b=2025-04-01:2025-06-30
 
 Importable — embed the same tables in a bespoke raw-HTML report:
-    from scripts.standard_report import build, parse_window
-    tables = build([parse_window("current=...:..."), parse_window("prior=...:...")])
+    from scripts.standard_report import build, derive_periods
+    tables = build(derive_periods("2026-04-01", "2026-06-30"))   # current / prior / yoy
 """
 from __future__ import annotations
 
 import argparse
 import sys
+from datetime import date, timedelta
 from typing import NamedTuple
 
 import pandas as pd
@@ -81,6 +88,36 @@ def parse_window(spec: str) -> Window:
             f"bad --window {spec!r}; expected name=YYYY-MM-DD:YYYY-MM-DD"
         )
     return Window(name.strip(), start.strip(), end.strip())
+
+
+def _shift_years(d: date, years: int) -> date:
+    try:
+        return d.replace(year=d.year + years)
+    except ValueError:  # Feb 29 in a non-leap target year
+        return d.replace(year=d.year + years, day=28)
+
+
+def derive_periods(start: str, end: str, compare: str = "both") -> list[Window]:
+    """Build the default analysis windows from a single period.
+
+    Returns `current` (start..end) plus, per `compare`:
+      - `prior` (PoP) — the immediately preceding equal-length window, and/or
+      - `yoy`        — the same calendar window one year earlier.
+    `compare` is one of 'both' (default), 'pop', 'yoy'. `current` is always primary,
+    so every table gets a `__vs_prior` and/or `__vs_yoy` change column.
+    """
+    s, e = date.fromisoformat(start), date.fromisoformat(end)
+    if e < s:
+        raise ValueError(f"period end {end} precedes start {start}")
+    span = (e - s).days  # inclusive length is span + 1 days
+    windows = [Window("current", s.isoformat(), e.isoformat())]
+    if compare in ("both", "pop"):
+        pe = s - timedelta(days=1)
+        ps = pe - timedelta(days=span)
+        windows.append(Window("prior", ps.isoformat(), pe.isoformat()))
+    if compare in ("both", "yoy"):
+        windows.append(Window("yoy", _shift_years(s, -1).isoformat(), _shift_years(e, -1).isoformat()))
+    return windows
 
 
 def _window_case(date_col: str, windows: list[Window]) -> str:
@@ -343,12 +380,27 @@ def _data_pack(tables: dict[str, pd.DataFrame], windows: list[Window]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Run the standard AAE analysis matrix.")
-    p.add_argument("--window", action="append", dest="windows", type=parse_window, required=True,
-                   metavar="name=YYYY-MM-DD:YYYY-MM-DD",
-                   help="Repeatable. The FIRST window is primary; changes are computed vs the rest.")
+    src = p.add_mutually_exclusive_group(required=True)
+    src.add_argument("--period", metavar="YYYY-MM-DD:YYYY-MM-DD",
+                     help="Analyze this window with PoP + YoY auto-derived (current / prior / yoy). "
+                          "The default way to run a report.")
+    src.add_argument("--window", action="append", dest="windows", type=parse_window,
+                     metavar="name=YYYY-MM-DD:YYYY-MM-DD",
+                     help="Explicit window(s) for full manual control; the FIRST is primary, "
+                          "changes are computed vs the rest. Repeatable.")
+    p.add_argument("--compare", choices=["both", "pop", "yoy"], default="both",
+                   help="With --period: which comparisons to include (default: both).")
     p.add_argument("--name", default="standard_report", help="Output basename (default: standard_report).")
     args = p.parse_args(argv)
-    windows: list[Window] = args.windows
+
+    if args.period:
+        try:
+            start, end = args.period.split(":", 1)
+        except ValueError:
+            p.error(f"bad --period {args.period!r}; expected YYYY-MM-DD:YYYY-MM-DD")
+        windows = derive_periods(start.strip(), end.strip(), args.compare)
+    else:
+        windows = args.windows
 
     tables = build(windows)
     OUT.mkdir(exist_ok=True)

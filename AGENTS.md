@@ -34,31 +34,33 @@ Notes:
 
 Most lead / booking / commission questions want the **same matrix**: revenue (booked / commission / gross / avg per booking) by `contracted_on` across lead_source (inbound vs repeat), agent, lead_origin, ad_presence, and budget tier; plus the inbound funnel (total_leads / workable_leads / assigned / SQL + the conversion rates) by `created_at`. `scripts/standard_report.py` produces all of it — **tables only, no narrative** — for any set of date windows, honoring the analysis defaults below. Don't rebuild these queries by hand.
 
+**Default framing is PoP + YoY.** When a user says "analyze Q2" (or any period), run it with `--period START:END` — the report auto-derives three windows: `current`, `prior` (the immediately preceding equal-length period, PoP), and `yoy` (the same calendar window one year earlier). Every table then carries both a `__vs_prior` and a `__vs_yoy` change column, so this one command covers the common ask *and* explicit PoP-only / YoY-only requests.
+
 Run it (writes one CSV per table + a tables-only HTML data pack to `outputs/`):
 
 ```bash
-python -m scripts.standard_report \
-    --window current=2026-05-13:2026-06-11 \
-    --window prior=2026-04-13:2026-05-12
+python -m scripts.standard_report --period 2026-04-01:2026-06-30          # Q2: current + PoP + YoY
+python -m scripts.standard_report --period 2026-04-01:2026-06-30 --compare yoy   # keep only YoY
 ```
 
-The first `--window` is primary; relative changes are computed primary-vs-each-other-window. Add more windows for MTD / YoY framings (e.g. a third `--window ly=2025-05-13:2025-06-11`).
+If the user explicitly wants a single comparison, pass `--compare pop` or `--compare yoy`. For non-standard framings, use explicit `--window name=START:END` (repeatable; the first is primary, changes are computed primary-vs-each-other).
 
 To assemble the **final report**, import the same tables and wrap them with your bespoke interpretation, then write raw HTML (see Outputs):
 
 ```python
-from scripts.standard_report import build, parse_window
+from scripts.standard_report import build, derive_periods
 from scripts.report import write_report, html_table
 
-tables = build([parse_window("current=2026-05-13:2026-06-11"),
-                parse_window("prior=2026-04-13:2026-05-12")])
-body  = "<h1>Inbound — 30d vs prior</h1>"
-body += "<p>Bespoke read: commission −8% while gross +11% — mix shifted to larger, lower-take deals…</p>"
+tables = build(derive_periods("2026-04-01", "2026-06-30"))   # current / prior / yoy
+body  = "<h1>Q2 2026 — PoP + YoY</h1>"
+body += "<p>Bespoke read: commission −8% PoP while gross +11% — mix shifted to larger, lower-take deals…</p>"
 body += html_table(tables["rev_source"], "lead_source", [
     ("commission_fee__current", "Comm cur", "money"),
-    ("commission_fee__prior",   "Comm prior", "money"),
-    ("commission_fee__vs_prior", "Δ%", "pct")])
-write_report("inbound_30d_vs_prior", body)
+    ("commission_fee__prior",   "Comm PoP", "money"),
+    ("commission_fee__vs_prior", "Δ% PoP", "pct"),
+    ("commission_fee__yoy",      "Comm YoY", "money"),
+    ("commission_fee__vs_yoy",   "Δ% YoY", "pct")])
+write_report("q2_2026_pop_yoy", body)
 ```
 
 Table keys: `rev_source`, `rev_agent`, `rev_origin`, `rev_ad`, `rev_budget`, `fun_total`, `fun_agent`, `fun_origin`, `fun_ad`, `fun_budget`. Reach for fully custom SQL only when the question falls outside this matrix.
