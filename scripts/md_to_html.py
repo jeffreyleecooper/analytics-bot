@@ -1,4 +1,8 @@
-"""Convert a markdown analysis writeup to a styled, standalone HTML file.
+"""Convert a markdown file to a styled, standalone HTML file.
+
+NOTE: The project's default output path is **raw HTML via `scripts.report`** — see
+`report.write_report`. This helper remains for the occasional case where a source
+markdown file already exists and you want it rendered with the same styling.
 
 Usage:
     python -m scripts.md_to_html outputs/some_analysis.md
@@ -15,39 +19,7 @@ from pathlib import Path
 
 import markdown
 
-CSS = """
-:root { color-scheme: light; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-       max-width: 980px; margin: 2rem auto; padding: 0 1.25rem; color: #1f2328; line-height: 1.55; }
-h1, h2, h3, h4 { line-height: 1.25; }
-h1 { border-bottom: 1px solid #d0d7de; padding-bottom: .3em; }
-h2 { border-bottom: 1px solid #d0d7de; padding-bottom: .3em; margin-top: 2em; }
-table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: .92em; }
-th, td { border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; }
-th { background: #f6f8fa; }
-tr:nth-child(even) td { background: #f9fafb; }
-code { background: #eff1f3; padding: .15em .35em; border-radius: 4px; font-size: .9em; }
-pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
-blockquote { border-left: 4px solid #d0d7de; margin: 1em 0; padding: .25em 1em; color: #57606a;
-             background: #f6f8fa; }
-a { color: #0969da; text-decoration: none; }
-a:hover { text-decoration: underline; }
-hr { border: 0; border-top: 1px solid #d0d7de; margin: 2em 0; }
-"""
-
-TEMPLATE = """<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title}</title>
-<style>{css}</style>
-</head>
-<body>
-{body}
-</body>
-</html>
-"""
+from scripts.report import CSS, TEMPLATE  # single source of styling
 
 
 def md_to_html(md_path: str | Path, html_path: str | Path | None = None) -> Path:
