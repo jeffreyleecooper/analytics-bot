@@ -10,7 +10,9 @@ Dimension matrix
 Revenue view  (metrics: booked, commission_fee, gross_fee, avg_commission/booking)
   rev_source  — by lead_source (inbound vs repeat) + TOTAL
   rev_agent   — by sales_agent (both sources) + TOTAL
+  rev_agent_source — by sales_agent x lead_source (both sources) + TOTAL
   rev_origin  — inbound by lead_origin + TOTAL
+  rev_origin_ad — inbound by lead_origin x ad_presence (website x ad/non-ad) + TOTAL
   rev_ad      — inbound by ad_presence + TOTAL
   rev_budget  — inbound by std_budget tier (canonical order) + TOTAL
 
@@ -19,6 +21,7 @@ Funnel view  (metrics: total_leads, workable_leads, assigned, qualified_assigned
   fun_total   — inbound, single row
   fun_agent   — inbound by sales_agent
   fun_origin  — inbound by lead_origin
+  fun_origin_ad — inbound by lead_origin x ad_presence
   fun_ad      — inbound by ad_presence
   fun_budget  — inbound by std_budget tier (canonical order)
 
@@ -186,6 +189,43 @@ def _funnel_df(windows: list[Window]) -> pd.DataFrame:
     return df
 
 
+def _open_now_df() -> pd.DataFrame:
+    """Point-in-time count of currently-open leads (sales_status='open') per segment.
+
+    No date filter — this is a pipeline snapshot ('what's in flight right now'),
+    independent of the comparison windows. Used as booking-count context in the
+    revenue tables, where open leads have no contracted_on to bucket by.
+    """
+    sql = f"""
+    SELECT
+      lead_source,
+      COALESCE(sales_agent, '{UNASSIGNED}') AS sales_agent,
+      COALESCE(lead_origin, '{UNK}')        AS lead_origin,
+      COALESCE(ad_presence, '{UNK}')        AS ad_presence,
+      COALESCE(std_budget, '{UNK}')         AS std_budget,
+      COUNT(*) AS open_now
+    FROM {TBL}
+    WHERE LOWER(IFNULL(sales_status, '')) = 'open'
+    GROUP BY 1, 2, 3, 4, 5
+    """
+    df = run_query(sql)
+    df["open_now"] = df["open_now"].astype(float)
+    return df
+
+
+def _attach_open_now(t: pd.DataFrame, groups: list[str], open_df: pd.DataFrame) -> pd.DataFrame:
+    """Left-merge the open-now snapshot onto a revenue table by its group column(s).
+
+    The TOTAL row gets the sum of the visible (non-TOTAL) rows so the column foots.
+    """
+    agg = open_df.groupby(groups, dropna=False)["open_now"].sum().reset_index()
+    merged = t.merge(agg, on=groups, how="left")
+    merged["open_now"] = merged["open_now"].fillna(0.0)
+    is_total = merged[groups[0]] == "TOTAL"
+    merged.loc[is_total, "open_now"] = merged.loc[~is_total, "open_now"].sum()
+    return merged
+
+
 # ---------- pivot / decorate ----------
 def _pivot(df: pd.DataFrame, group_cols: list[str], metrics: list[str],
            windows: list[Window]) -> pd.DataFrame:
@@ -275,10 +315,50 @@ def _rev_table(rev: pd.DataFrame, group: str, windows: list[Window], sort_by: st
     return pd.concat([body, t[t[group] == "TOTAL"]], ignore_index=True)
 
 
+def _rev_table2(rev: pd.DataFrame, groups: list[str], windows: list[Window], sort_by: str) -> pd.DataFrame:
+    """Revenue table cross-segmented by two dimensions (e.g. agent x source).
+
+    Both `groups` are kept as separate columns. Rows are **grouped by the first
+    dimension** so its values stay adjacent (e.g. an agent's inbound and repeat rows
+    sit together): the first dimension is ordered by its total of `sort_by`, and rows
+    within each first-dimension value are ordered by `sort_by`. A grand TOTAL row is
+    appended last.
+    """
+    t = _pivot(rev, groups, REV_BASE, windows)
+    value_cols = [c for c in t.columns if c not in groups]
+    total = {c: t[c].sum() for c in value_cols}
+    for g in groups:
+        total[g] = "TOTAL"
+    t = pd.concat([t, pd.DataFrame([total])], ignore_index=True)
+    t = _decorate(t, windows, REV_BASE, REV_RATIOS)
+    body = t[t[groups[0]] != "TOTAL"].copy()
+    order = body.groupby(groups[0])[sort_by].sum().sort_values(ascending=False).index
+    body[groups[0]] = pd.Categorical(body[groups[0]], categories=order, ordered=True)
+    body = body.sort_values([groups[0], sort_by], ascending=[True, False])
+    body[groups[0]] = body[groups[0]].astype(str)
+    return pd.concat([body, t[t[groups[0]] == "TOTAL"]], ignore_index=True)
+
+
 def _fun_table(fun_in: pd.DataFrame, group: str, windows: list[Window], sort_by: str) -> pd.DataFrame:
     t = _pivot(fun_in, [group], FUN_BASE, windows)
     t = _decorate(t, windows, FUN_BASE, FUN_RATIOS)
     return t.sort_values(sort_by, ascending=False).reset_index(drop=True)
+
+
+def _fun_table2(fun_in: pd.DataFrame, groups: list[str], windows: list[Window], sort_by: str) -> pd.DataFrame:
+    """Funnel table cross-segmented by two dimensions (e.g. origin x ad_presence).
+
+    Both `groups` are kept as separate columns and rows are **grouped by the first
+    dimension** (ordered by its total of `sort_by`; rows within each ordered by
+    `sort_by`), matching `_rev_table2`. No TOTAL row (funnel totals live in fun_total).
+    """
+    t = _pivot(fun_in, groups, FUN_BASE, windows)
+    t = _decorate(t, windows, FUN_BASE, FUN_RATIOS)
+    order = t.groupby(groups[0])[sort_by].sum().sort_values(ascending=False).index
+    t[groups[0]] = pd.Categorical(t[groups[0]], categories=order, ordered=True)
+    t = t.sort_values([groups[0], sort_by], ascending=[True, False])
+    t[groups[0]] = t[groups[0]].astype(str)
+    return t.reset_index(drop=True)
 
 
 def build(windows: list[Window]) -> dict[str, pd.DataFrame]:
@@ -298,11 +378,25 @@ def build(windows: list[Window]) -> dict[str, pd.DataFrame]:
     tables: dict[str, pd.DataFrame] = {}
 
     # revenue
-    tables["rev_source"] = _rev_table(rev, "lead_source", windows, pc)
-    tables["rev_agent"] = _rev_table(rev, "sales_agent", windows, pc)
-    tables["rev_origin"] = _rev_table(rev_in, "lead_origin", windows, pc)
-    tables["rev_ad"] = _rev_table(rev_in, "ad_presence", windows, pc)
-    rev_budget = _rev_table(rev_in, "std_budget", windows, pc)
+    open_all = _open_now_df()
+    open_in = open_all[open_all["lead_source"] == "inbound"].copy()
+
+    tables["rev_source"] = _attach_open_now(
+        _rev_table(rev, "lead_source", windows, pc), ["lead_source"], open_all)
+    tables["rev_agent"] = _attach_open_now(
+        _rev_table(rev, "sales_agent", windows, pc), ["sales_agent"], open_all)
+    tables["rev_agent_source"] = _attach_open_now(
+        _rev_table2(rev, ["sales_agent", "lead_source"], windows, pc),
+        ["sales_agent", "lead_source"], open_all)
+    tables["rev_origin"] = _attach_open_now(
+        _rev_table(rev_in, "lead_origin", windows, pc), ["lead_origin"], open_in)
+    tables["rev_origin_ad"] = _attach_open_now(
+        _rev_table2(rev_in, ["lead_origin", "ad_presence"], windows, pc),
+        ["lead_origin", "ad_presence"], open_in)
+    tables["rev_ad"] = _attach_open_now(
+        _rev_table(rev_in, "ad_presence", windows, pc), ["ad_presence"], open_in)
+    rev_budget = _attach_open_now(
+        _rev_table(rev_in, "std_budget", windows, pc), ["std_budget"], open_in)
     tables["rev_budget"] = _sort_budget(rev_budget)
 
     # funnel (inbound) — single-row inbound total via a constant group key
@@ -314,6 +408,7 @@ def build(windows: list[Window]) -> dict[str, pd.DataFrame]:
 
     tables["fun_agent"] = _fun_table(fun_in, "sales_agent", windows, pa)
     tables["fun_origin"] = _fun_table(fun_in, "lead_origin", windows, f"workable_leads__{primary}")
+    tables["fun_origin_ad"] = _fun_table2(fun_in, ["lead_origin", "ad_presence"], windows, f"workable_leads__{primary}")
     tables["fun_ad"] = _fun_table(fun_in, "ad_presence", windows, f"workable_leads__{primary}")
     tables["fun_budget"] = _sort_budget(_fun_table(fun_in, "std_budget", windows, f"workable_leads__{primary}"))
 
@@ -322,17 +417,22 @@ def build(windows: list[Window]) -> dict[str, pd.DataFrame]:
 
 # ---------- CLI: dump CSVs + tables-only HTML data pack ----------
 def _rev_columns(windows: list[Window]) -> list[tuple[str, str, str]]:
+    """Revenue columns, COUNT-first: bookings + Open-now context, then commission,
+    avg commission/booking, then gross. Reading volume before revenue keeps a channel
+    from being misjudged as 'down' on a commission dip when booking volume is up."""
     cols: list[tuple[str, str, str]] = []
-    for m, label, kind in [
-        ("commission_fee", "Comm", "money"),
-        ("booked", "Bookings", "int"),
-        ("gross_fee", "Gross", "money"),
-        ("avg_commission", "Avg comm/bkg", "money"),
-    ]:
+
+    def add(m: str, label: str, kind: str) -> None:
         for w in windows:
             cols.append((f"{m}__{w.name}", f"{label} {w.name}", kind))
         for w in windows[1:]:
             cols.append((f"{m}__vs_{w.name}", f"{label} Δ%{w.name}", "pct"))
+
+    add("booked", "Bookings", "int")
+    cols.append(("open_now", "Open now", "int"))   # point-in-time pipeline context
+    add("commission_fee", "Comm", "money")
+    add("avg_commission", "Avg comm/bkg", "money")
+    add("gross_fee", "Gross", "money")
     return cols
 
 
@@ -347,6 +447,9 @@ def _fun_columns(windows: list[Window]) -> list[tuple[str, str, str]]:
             cols.append((f"{m}__{w.name}", f"{label} {w.name}", kind))
         for w in windows[1:]:
             cols.append((f"{m}__vs_{w.name}", f"{label} Δ%{w.name}", "pct"))
+    # open leads still in the pipeline, per window (no delta — prior/yoy are largely resolved)
+    for w in windows:
+        cols.append((f"open_leads__{w.name}", f"Open {w.name}", "int"))
     for m, label, kind in rates:
         for w in windows:
             cols.append((f"{m}__{w.name}", f"{label} {w.name}", kind))
@@ -359,12 +462,15 @@ def _data_pack(tables: dict[str, pd.DataFrame], windows: list[Window]) -> str:
     spec = [
         ("Revenue — by source (inbound vs repeat)", "rev_source", "lead_source", rc),
         ("Revenue — by agent", "rev_agent", "sales_agent", rc),
+        ("Revenue — by agent x source", "rev_agent_source", "sales_agent", [("lead_source", "source", "str")] + rc),
         ("Revenue — inbound by lead_origin", "rev_origin", "lead_origin", rc),
+        ("Revenue — inbound by lead_origin x ad_presence", "rev_origin_ad", "lead_origin", [("ad_presence", "ad", "str")] + rc),
         ("Revenue — inbound by ad_presence", "rev_ad", "ad_presence", rc),
         ("Revenue — inbound by budget tier", "rev_budget", "std_budget", rc),
         ("Funnel — inbound total", "fun_total", "scope", fc),
         ("Funnel — inbound by agent", "fun_agent", "sales_agent", fc),
         ("Funnel — inbound by lead_origin", "fun_origin", "lead_origin", fc),
+        ("Funnel — inbound by lead_origin x ad_presence", "fun_origin_ad", "lead_origin", [("ad_presence", "ad", "str")] + fc),
         ("Funnel — inbound by ad_presence", "fun_ad", "ad_presence", fc),
         ("Funnel — inbound by budget tier", "fun_budget", "std_budget", fc),
     ]

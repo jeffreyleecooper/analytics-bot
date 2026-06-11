@@ -63,15 +63,39 @@ body += html_table(tables["rev_source"], "lead_source", [
 write_report("q2_2026_pop_yoy", body)
 ```
 
-Table keys: `rev_source`, `rev_agent`, `rev_origin`, `rev_ad`, `rev_budget`, `fun_total`, `fun_agent`, `fun_origin`, `fun_ad`, `fun_budget`. Reach for fully custom SQL only when the question falls outside this matrix.
+Table keys: `rev_source`, `rev_agent`, `rev_agent_source` (agent × source), `rev_origin`, `rev_origin_ad` (lead_origin × ad_presence), `rev_ad`, `rev_budget`, `fun_total`, `fun_agent`, `fun_origin`, `fun_origin_ad` (lead_origin × ad_presence), `fun_ad`, `fun_budget`. Reach for fully custom SQL only when the question falls outside this matrix.
+
+## Standard Report #2 — Funnel stage-entry flow over time
+
+`scripts/funnel_stage_report.py` is the second standard report: **how many opps entered
+each sales stage (Assigned → Qualifying → Proposed → Firm offer → Booked) per month** —
+funnel throughput/velocity over time. Run it for trend questions about the funnel itself.
+
+```bash
+python -m scripts.funnel_stage_report                    # trailing 18 months, both sources
+python -m scripts.funnel_stage_report --months 12 --source inbound
+```
+
+It writes `outputs/<name>_stage_flow.csv` + an HTML report (rows = stages, columns =
+months, final column month-to-date). Importable via `build(derive_months(asof, n), source)`.
+
+**Why entry-flow and not point-in-time occupancy?** Stage *entry* timestamps
+(`*_stage_started_at`, `contracted_on`) are reliable, but stage *exit* / loss timing is
+**not** (loss timestamps are frequently backfilled to an earlier date), so a trustworthy
+"how many opps were sitting in each stage on date X" reconstruction is not supported by
+this data. The report also excludes ~21k inert records (an `assigned_at` only, blank
+status, stage `None`) that never entered the pipeline. The authoritative *current*
+pipeline by stage lives in the `stage` / `sales_status` fields if you need a now-snapshot.
 
 ## Custom Analysis Scratch File
 
-`scripts/analysis.py` is a scratch file for analyses that fall outside the standard matrix, or for the glue that assembles a bespoke report (import `build`, add notes, `write_report`). Use it freely for multi-step DataFrame work — overwrite its contents between tasks; it is not intended to hold durable code. Run with `python scripts/analysis.py`.
+`scripts/analysis.py` is a scratch file for analyses that fall outside the standard matrix, or for the glue that assembles a bespoke report (import `build`, add notes, `write_report`). Use it freely for multi-step DataFrame work — overwrite its contents between tasks; it is not intended to hold durable code. Run it as a module so its `scripts.*` imports resolve: `python -m scripts.analysis` (not `python scripts/analysis.py`, which fails with `ModuleNotFoundError`).
 
 ## Outputs
 
 Save persisted analysis artifacts (CSV result sets, the final report, charts) under `outputs/`. When using `run_query.py --csv`, point it at `outputs/<name>.csv`. Keep file names descriptive of the analysis they came from.
+
+**Every analysis inquiry must culminate in a compiled HTML report — always, without being asked.** Chat findings are a preview, not the deliverable. Any time you analyze data for the user, finish by assembling a bespoke HTML report (interpretation + the relevant standard tables) and writing it to `outputs/`. Do not treat the report as an optional follow-up step or offer it as a choice.
 
 **The report format is HTML, and only HTML.** Author the report as **raw HTML** and write it with the shared shell helper — there is no markdown intermediate and no `.md` deliverable:
 
@@ -82,7 +106,7 @@ body += html_table(df, "lead_source", [("commission_fee__current", "Comm cur", "
 write_report("inbound_30d_vs_prior", body)   # -> outputs/inbound_30d_vs_prior.html
 ```
 
-`scripts/report.py` provides `write_report` (styled standalone HTML shell), `html_table` (DataFrame → HTML table fragment), and the `money` / `integer` / `pct` / `percent` formatters. (`scripts/md_to_html.py` remains only for the rare case of rendering a pre-existing `.md` with the same styling; it is **not** the default path.)
+`scripts/report.py` provides `write_report` (styled standalone HTML shell), `html_table` (DataFrame → HTML table fragment), and the `money` / `integer` / `pct` / `percent` formatters. Signed change columns (the `pct` kind — every `__vs_<window>` delta) are **automatically color-coded** green for positive / red for negative, so deltas read at a glance; level columns (rates, money) stay uncolored. `write_report` also **auto-appends a metric-definitions glossary** (+ reading conventions) to every report so a shared file is self-explanatory — you never add one by hand; pass `include_glossary=False` only for non-standalone fragments. (`scripts/md_to_html.py` remains only for the rare case of rendering a pre-existing `.md` with the same styling; it is **not** the default path.)
 
 **Reset analysis state before starting a fresh analysis.** Stale CSVs and markdown from a previous run can be confused with current results, and old files often encode prior (sometimes wrong) methodology. At the start of any new analysis task, run `python scripts/reset.py` to (a) delete the existing contents of `outputs/` (the directory itself is kept) and (b) reset `scripts/analysis.py` back to its scratch shell. If the user is iterating on an in-progress analysis, do **not** run this — only clear files belonging to that same analysis manually.
 
@@ -101,6 +125,8 @@ These defaults apply to any analysis against `1_mega_opps_live`. Violating them 
 3. **A self-consistent quarterly analysis usually splits into two views:**
    - **Revenue view** — `booked` / `gross_fee` / `commission_fee` by `contracted_on`, both sources, optionally split inbound vs repeat.
    - **Funnel view** — `total_leads` / `workable_leads` / `assigned` / SQL / conversion rates by `created_at`, inbound only.
+
+4. **Assess on COUNT first, then revenue, then commission-per-booking — and always alongside open pipeline.** Read booking *volume* before commission so a channel isn't judged "down" on a revenue dip when bookings are actually up (or vice-versa); a falling commission with rising bookings is a deal-size story, not a demand story. The standard report enforces this: revenue tables lead with `Bookings`, then an `Open now` column (point-in-time count of currently-open leads per segment — important context, since a low in-window booking count may just mean deals are still in flight), then commission and avg commission/booking. Funnel tables likewise surface per-window `open_leads`. Never present commission deltas without the booking count and open pipeline next to them.
 
 Full field reference, metric definitions, and budget ordering: [notes/LEAD_ANALYSIS.MD](notes/LEAD_ANALYSIS.MD).
 
