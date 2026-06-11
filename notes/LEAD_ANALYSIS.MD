@@ -56,6 +56,8 @@ A self-consistent quarterly analysis typically reports:
 
 When aggregating, numeric columns should be coerced to numbers and null-filled with `0`. String segment columns should be null-filled with `"Unknown"` so groupby operations don't drop rows.
 
+For inbound source-mix analysis, segment by the intersection of **`lead_origin` × `ad_presence`** unless the user asks for only one of those dimensions. This separates website/source effects from ad vs non-ad traffic effects.
+
 **Aside on `*_basis` columns:** the table also has `proposal_stage_basis`, `offer_stage_basis`, etc. These are populated on 100% of rows — they equal the corresponding `*_started_at` when the stage was hit, and fall back to a default timestamp (≈ `created_at`) otherwise. They are *not* the "stage was reached" signal. Always use `*_stage_started_at IS NOT NULL` for that.
 
 ## Budget Ordering
